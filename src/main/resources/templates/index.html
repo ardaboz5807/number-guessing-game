@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Guessing Game</title>
+    <style>
+        :root { --bg:#f6f7fb; --surface:#fff; --text:#1e293b; --muted:#64748b; --line:#e6eaf0; --accent:#405bd8; --accent-hover:#304ac1; }
+        * { box-sizing:border-box; }
+        body { margin:0; background:var(--bg); color:var(--text); font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif; }
+        .layout { width:min(100% - 36px, 880px); margin:65px auto; }
+        header { margin-bottom:32px; text-align:center; }
+        .eyebrow { color:var(--accent); font-size:12px; font-weight:750; letter-spacing:1.3px; text-transform:uppercase; }
+        h1 { margin:9px 0; font-size:clamp(28px,4vw,38px); letter-spacing:-1.2px; }
+        header p, .muted { color:var(--muted); }
+        header p { margin:0; font-size:15px; }
+        .grid { display:grid; grid-template-columns:1.25fr 0.9fr; align-items:start; gap:20px; }
+        .card { background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:28px; box-shadow:0 9px 25px #25325708; }
+        .card h2 { font-size:17px; letter-spacing:-.35px; margin:0 0 8px; }
+        .card-subtitle { font-size:13px; color:var(--muted); margin:0 0 26px; }
+        .number-badge { width:75px; height:75px; background:#eef1ff; border-radius:20px; display:grid; place-items:center; margin:5px auto 19px; font-weight:800; color:var(--accent); font-size:33px; }
+        .game-title { font-size:21px; font-weight:750; text-align:center; margin:0 0 8px; }
+        .hint { color:var(--muted); font-size:14px; text-align:center; line-height:1.6; margin:0 0 26px; }
+        label { display:block; font-size:13px; font-weight:650; margin:0 0 9px; }
+        input { width:100%; border:1px solid #dce2ed; border-radius:10px; padding:13px 14px; outline:none; font:inherit; background:#fff; color:var(--text); }
+        input:focus { border-color:var(--accent); box-shadow:0 0 0 3px #405bd81c; }
+        .primary { display:block; width:100%; border:0; border-radius:10px; background:var(--accent); color:#fff; padding:13px; font:inherit; font-size:14px; font-weight:700; cursor:pointer; margin-top:12px; }
+        .primary:hover { background:var(--accent-hover); }
+        .secondary { border:1px solid var(--line); border-radius:9px; background:#fff; padding:9px 13px; font:inherit; font-size:13px; font-weight:650; color:var(--muted); cursor:pointer; }
+        .secondary:hover { background:#f7f8fd; }
+        .feedback { border-radius:10px; padding:12px 14px; font-size:14px; text-align:center; margin-top:18px; background:#eef1ff; color:#344bb8; }
+        .feedback.success { background:#eaf7ef; color:#227547; }
+        .stats { display:flex; justify-content:space-between; align-items:center; margin-top:22px; padding-top:17px; border-top:1px solid var(--line); }
+        .stats small { display:block; color:var(--muted); font-size:12px; margin-bottom:5px; }
+        .stats strong { font-size:20px; }
+        .save { border-top:1px solid var(--line); margin-top:20px; padding-top:20px; }
+        .table { width:100%; border-collapse:collapse; font-size:13px; }
+        th { text-align:left; color:var(--muted); font-weight:650; padding:12px 5px; border-bottom:1px solid var(--line); }
+        td { padding:14px 5px; border-bottom:1px solid #f0f2f6; }
+        td:last-child, th:last-child { text-align:right; }
+        .empty { padding:20px 0; font-size:13px; color:var(--muted); text-align:center; }
+        footer { text-align:center; color:#94a3b8; font-size:12px; margin-top:28px; }
+        @media(max-width:700px) { .layout { margin:32px auto; } .grid { grid-template-columns:1fr; } .card { padding:22px; } }
+    </style>
+</head>
+<body>
+<div class="layout">
+    <header>
+        <span class="eyebrow">Mini Game</span>
+        <h1>Number Guessing Game</h1>
+        <p>Errate die geheime Zahl mit möglichst wenigen Versuchen.</p>
+    </header>
+
+    <main class="grid">
+        <section class="card">
+            <div class="number-badge">?</div>
+            <p class="game-title">Welche Zahl suche ich?</p>
+            <p class="hint">Ich denke an eine Zahl zwischen <strong>1 und 100</strong>.<br>Gib deinen Tipp ab!</p>
+
+            <!-- Controller: @PostMapping("/guess"), Parameter: guess -->
+            <form th:action="@{/guess}" action="/guess" method="post" th:if="${won != true}">
+                <label for="guess">Deine Zahl</label>
+                <input id="guess" name="guess" type="number" min="1" max="100" required placeholder="Zahl von 1 bis 100" autofocus>
+                <button class="primary" type="submit">Zahl prüfen</button>
+            </form>
+
+            <!-- GameController liefert result: TOO_HIGH, TOO_LOW, CORRECT, INVALID, ALREADY_WON -->
+            <div class="feedback" th:if="${result != null or won == true}"
+                 th:classappend="${won == true} ? ' success' : ''">
+                <span th:switch="${result}">
+                    <span th:case="'TOO_HIGH'">Zu hoch! Versuche eine kleinere Zahl.</span>
+                    <span th:case="'TOO_LOW'">Zu niedrig! Versuche eine größere Zahl.</span>
+                    <span th:case="'CORRECT'">Richtig geraten! Glückwunsch!</span>
+                    <span th:case="'INVALID'">Bitte gib eine Zahl von 1 bis 100 ein.</span>
+                    <span th:case="'ALREADY_WON'">Du hast bereits gewonnen. Starte ein neues Spiel.</span>
+                    <span th:case="*" th:text="${won == true} ? 'Du hast gewonnen!' : ''"></span>
+                </span>
+            </div>
+
+            <!-- Erscheint erst, nachdem das Spiel gewonnen wurde. -->
+            <div class="save" th:if="${won == true}">
+                <h2>Ergebnis speichern</h2>
+                <p class="card-subtitle">Trage deinen Namen in die Bestenliste ein.</p>
+                <!-- Controller: @PostMapping("/score"), Parameter: playerName -->
+                <form th:action="@{/score}" action="/score" method="post">
+                    <label for="playerName">Dein Name</label>
+                    <input id="playerName" name="playerName" type="text" maxlength="30" required placeholder="Spielername">
+                    <button class="primary" type="submit">Score speichern</button>
+                </form>
+            </div>
+
+            <div class="stats">
+                <div><small>Bisherige Versuche</small><strong th:text="${tries != null} ? ${tries} : 0">0</strong></div>
+                <!-- Controller: @PostMapping("/restart") -->
+                <form th:action="@{/restart}" action="/restart" method="post">
+                    <button class="secondary" type="submit">Neues Spiel ↻</button>
+                </form>
+            </div>
+        </section>
+
+        <aside class="card">
+            <h2>Bestenliste</h2>
+            <p class="card-subtitle">Die besten Ergebnisse – wenigste Versuche zuerst.</p>
+            <table class="table">
+                <thead><tr><th>Platz</th><th>Spieler</th><th>Versuche</th></tr></thead>
+                <tbody>
+                    <!-- Controller liefert: model.addAttribute("scores", scoreListe) -->
+                    <tr th:each="score, stat : ${scores}">
+                        <td th:text="${stat.count}">1</td>
+                        <td th:text="${score.playerName}">Spieler</td>
+                        <td th:text="${score.attempts}">5</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p class="empty" th:if="${scores == null or #lists.isEmpty(scores)}">Noch keine Ergebnisse gespeichert.</p>
+        </aside>
+    </main>
+    <footer>Number Guessing Game · Spring Boot &amp; SQLite</footer>
+</div>
+</body>
+</html>
